@@ -4,7 +4,6 @@ const exportsJson = {
     mongoose: require('mongoose'),
     helment: require('helmet'),
     cors: require('cors'),
-    xss: require('xss-clean'),
     fs: require('fs'),
     router: require('express').Router(),
     morgan: require('morgan'),

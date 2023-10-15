@@ -1,4 +1,4 @@
-const { dotenv, app, morgan, cors, bodyParser, helment, xss } = require("./app/services/imports");
+const { dotenv, app, morgan, cors, bodyParser, helment } = require("./app/services/imports");
 
 dotenv.config();
 const config = require("./app/config/config");
@@ -20,10 +20,6 @@ app.use(bodyParser.json());
 
 // adding Helmet to enhance your API's security
 app.use(helment());
-
-// sanitize request data
-app.use(xss());
-
 const router = require('./app/routes/__index');
 app.use('/', router);
 app.get("/demo", (req, res) => {
