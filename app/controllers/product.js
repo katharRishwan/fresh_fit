@@ -58,21 +58,28 @@ module.exports = {
                 })
             }
             const filterQuery = { isDeleted: false };
+            const unnecessary = {};
+            if (req.decoded.role == 'USER') {
+                filterQuery.status = 'active'
+                unnecessary.modestyPrice = 0
+                unnecessary.yesterdayModestyPrice = 0
+                unnecessary.dayBeforeDayModestyPrice = 0
+            }
             if (type) filterQuery.type = type;
             if (_id) {
                 filterQuery._id = _id;
-                const data = await ProductModel.findOne(filterQuery);
+                const data = await ProductModel.findOne(filterQuery, unnecessary);
                 if (data) {
                     return res.success({ msg: 'request access', result: data })
                 };
                 return res.clientError({ msg: responseMessages[1012] })
             }
-            if (req.decoded.role == 'USER') {
-                filterQuery.status = 'active'
-            }
+            // if (req.decoded.role == 'USER') {
+            //     filterQuery.status = 'active'
+            // }
             console.log('filterQuery0---', filterQuery);
 
-            const data = await ProductModel.find(filterQuery);
+            const data = await ProductModel.find(filterQuery, unnecessary);
             if (!data.length) {
                 res.success({
                     msg: responseMessages[1012],

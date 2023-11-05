@@ -11,10 +11,12 @@ module.exports = mongoose.model(
                     kg: Number,
                     kgRate: Number,
                     totalRate: Number,
+                    modestyPrice: Number,
                     box: { type: Boolean, default: false },
                 }
             ],
             totalAmount: Number,
+            totalModestyAmount: Number,
             rateVerified: { type: Boolean, default: true },
             orderDate: { type: Date },
             deliveryDate: { type: Date },

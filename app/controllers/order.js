@@ -176,19 +176,37 @@ module.exports = {
             if (user) {
                 filterQuery.user = user
             }
+            const unnecessary = {}
             if (req.decoded.role == 'USER') {
                 filterQuery.user = req.decoded.user_id
+                unnecessary.products = { modestyPrice: 0 }
             }
-            console.log('filterQuery---', filterQuery);
-            const data = await OrderModel.find(filterQuery).populate(populateValues).sort({ _id: -1 });
-            console.log('data--------', data);
+            console.log('filterQuery---', filterQuery, unnecessary);
+            let data = await OrderModel.find(filterQuery, unnecessary).populate(populateValues).sort({ _id: -1 });
+            // console.log('data--------', data);
             if (!data.length) {
                 return res.success({
                     msg: responseMessages[1012],
                     result: data,
                 });
             }
+            if (req.decoded.role === 'ADMIN') {
+                data = data.map((val) => {
+                    val = { ...val._doc }
+                    let totalProfit = 0
+                    val.products = val.products.map((pro) => {
+                        pro = { ...pro._doc };
+                        pro.singleProfit = pro.kgRate - pro.modestyPrice
+                        pro.ProductProfit = pro.singleProfit * pro.kg
+                        totalProfit += pro.ProductProfit
+                        return pro
+                    });
+                    val.totalProfit = totalProfit
+                    return val
+                })
+            }
 
+            console.log('dadata---', data[0]);
             return res.success({
                 msg: 'Order list',
                 result: data,
@@ -396,6 +414,7 @@ module.exports = {
     todayNeededProducts: async (req, res) => {
         try {
             const filterQuery = { isDeleted: false };
+            filterQuery.status = { $ne: 'pending' }
             const today = new Date(); // Get the current date and time
 
             // Set the time to the beginning of the day (midnight)
@@ -408,6 +427,7 @@ module.exports = {
                 $gte: today,
                 $lt: endOfDay,
             }
+            // console.log('-------', filterQuery);
             const data = await OrderModel.find(filterQuery);
             const products = [];
             data.map((ord) => {
@@ -431,14 +451,18 @@ module.exports = {
                 name: key,
                 kg: kgSumByName[key],
             }));
-            const unnecessary = { name: 1, type: 1, status: 1, tamilName: 1, thanglishName: 1 };
+            const necessary = { name: 1, type: 1, status: 1, tamilName: 1, thanglishName: 1, img_url: 1, modestyPrice: 1 };
             const productIds = kgSumArray.map((pr) => pr.name.toString());
-            const findProduct = await ProductModel.find({ _id: { $in: productIds } }, unnecessary);
+            const findProduct = await ProductModel.find({ _id: { $in: productIds } }, necessary);
+            let totalAmount = 0;
             const result = findProduct.map((value) => {
                 const details = { ...value._doc };
                 kgSumArray.find((val) => {
                     if (val.name.toString() == value._id.toString()) {
                         details.need = val.kg
+                        console.log('--------', val,);
+                        details.amount = value.modestyPrice * val.kg
+                        totalAmount += details.amount
                     }
                 });
                 return details
@@ -452,7 +476,7 @@ module.exports = {
 
             return res.success({
                 msg: 'Order list',
-                result,
+                result: { result, totalAmount }
             });
         } catch (error) {
             console.log('error.status', error);
@@ -544,6 +568,7 @@ module.exports = {
             // today.setHours(0, 0, 0, 0); // Set the time to midnight for accurate comparison
             // console.log('today-----', today);
             // filterQuery.createdAt = today;
+            const findProcuct = await ProductModel.findOne({ _id: name })
             const checkExist = await OrderModel.findOne(filterQuery);
             const total = kgRate * kilo;
             let already = false;
@@ -568,7 +593,7 @@ module.exports = {
                         result: checkExist
                     })
                 }
-                checkExist.products.push({ name, kg: kilo, kgRate, totalRate: total });
+                checkExist.products.push({ name, kg: kilo, kgRate, totalRate: total, modestyPrice: findProcuct.modestyPrice });
                 checkExist.totalAmount += total;
                 console.log('checkExist-----------', checkExist);
                 checkExist.totalProducts = checkExist.products.length;
@@ -578,7 +603,7 @@ module.exports = {
                     result: checkExist
                 })
             };
-            const createData = { products: { name, kg: kilo, kgRate, totalRate: total }, orderDate: new Date(), totalAmount: total, user: user_id }
+            const createData = { products: { name, kg: kilo, kgRate, totalRate: total, modestyPrice: findProcuct.modestyPrice }, orderDate: new Date(), totalAmount: total, user: user_id }
             const data = await OrderModel.create(createData);
             if (data) {
                 return res.success({
